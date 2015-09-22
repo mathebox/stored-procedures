@@ -1,8 +1,4 @@
-try:
-    from django.db.models.signals import post_syncdb
-    from django.db import models, connection
-except Exception as exp:
-    print exp
+from django.db import models, connection
 
 import re
 
@@ -87,18 +83,3 @@ def registerProcedure(procedure):
 def resetProcedures(verbosity = 2):
     """Resets all procedures registered with the library in the database."""
     library.resetProcedures(verbosity)
-
-def reset(sender, **kwargs):
-    resetProcedures(1)
-
-# Connect to syncdb
-# post_syncdb.connect(reset)
-
-# Connect to south's handler
-try:
-    from south.signals import post_migrate
-
-    post_migrate.connect(reset)
-except ImportError:
-    pass
-
