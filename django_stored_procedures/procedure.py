@@ -207,7 +207,17 @@ Note that we first try to delete the procedure, and then insert it. Take great c
                 # When sufficiently verbose or pedantic, display warnings
                 warnings.simplefilter('always' if verbosity >= 2 or self._raise_warnings else 'ignore')
 
-                cursor.execute('DROP PROCEDURE IF EXISTS %s' % connection.ops.quote_name(self.name))
+                # Drop procedure if exists
+                sql_check_proc = """
+                    SELECT count(*)
+                    FROM "SYS"."P_PROCEDURES_"
+                    WHERE schema=current_schema
+                    AND name='%s'
+                """
+                cursor.execute(sql_check_proc % (self.name.upper(),))
+                if cursor.fetchone()[0] > 0:  # Procedure exists
+                    cursor.execute('DROP PROCEDURE %s' % (self.name,))
+
                 cursor.execute(self.sql)
 
                 if len(ws) >= 1:
