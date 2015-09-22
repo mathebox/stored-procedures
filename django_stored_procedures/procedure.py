@@ -10,6 +10,8 @@ from django.db.utils import OperationalError
 
 import codecs, itertools, re, functools, warnings
 
+from itertools import izip_longest
+
 from exceptions import *
 from library import registerProcedure
 
@@ -197,7 +199,6 @@ Whenever the context given on initialization is dynamic, it is computed here. Fi
 Note that we first try to delete the procedure, and then insert it. Take great care not to accidentally delete some other procedure which just happens to carry the same name, this is *not* prevented here.
 """
         cursor = connection.cursor()
-
         # Try to delete the procedure, if it exists
         try:
             # The database may give a warning when deleting a stored procedure which does not already
@@ -228,39 +229,10 @@ Note that we first try to delete the procedure, and then insert it. Take great c
 
 :raises: Nameclashes result in a :exc:`TypeError`, invalid arguments yield :exc:`~exceptions.InvalidArgument` and too few arguments give rise to :exc:`~exceptions.InsufficientArguments`."""
         # Fetch the procedures arguments
-        for arg, value in itertools.izip(self.arguments, args):
-            if arg in kwargs:
-                raise TypeError('Argument at %s clashes, given via *args and **kwargs' % arg)
-
-            kwargs[arg] = value
-
-        args = list(self._shuffle_arguments(kwargs))
+        args = {arg.upper(): arg_value for arg, arg_value in izip_longest(self.arguments, args)}
 
         cursor = connection.cursor()
-
-        try:
-            cursor.execute(self.call, args)
-        except (DatabaseError, OperationalError) as exp:
-            # Something went wrong, find out what
-            code, message = exp.args
-            if code == 1305:
-                # Procedure does not exist
-                raise ProcedureDoesNotExistException(
-                        procedure         = self
-                    ,   operational_error = exp
-                )
-            elif code == 1318:
-                # Incorrect number of argument, the argument list must be incorrect
-                raise IncorrectNumberOfArgumentsException(
-                        procedure          = self
-                    ,   operational_error  = exp
-                )
-            else:
-                # Some other error occurred
-                raise ProcedureExecutionException(
-                        procedure         = self
-                    ,   operational_error = exp
-                )
+        cursor.execute(self.call, args)
 
         # Always force the cursor to free its warnings
         with warnings.catch_warnings(record = True) as ws:
@@ -395,7 +367,7 @@ Note that we first try to delete the procedure, and then insert it. Take great c
         """Generates the call to the procedure"""
         self._call = 'CALL %s (%s)' % \
             (
-                    connection.ops.quote_name(self.name)
+                    self.name
                 ,   ','.join('%s' for _ in xrange(0, argCount))
             )
 
