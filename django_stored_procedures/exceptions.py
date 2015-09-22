@@ -3,7 +3,7 @@ try:
 except Exception as exp:
     print exp
 
-from _mysql import OperationalError, Warning
+from django.db.utils import OperationalError
 
 class StoredProcedureException(Exception):
     def __init__(self, procedure):
@@ -38,7 +38,7 @@ class ProcedureExecutionException(StoredProcedureException):
     def __init__(self, **kwargs):
         """Exception that occurs during the execution of a stored procedure.
 
-:param operational_error: The exception that occurred, in most cases this will be of type :exc:`django.db.utils.DatabaseError` or `_mysql.OperationalError`.
+:param operational_error: The exception that occurred, in most cases this will be of type :exc:`django.db.utils.DatabaseError` or `django.db.utils.OperationalError`.
 :type operational_error: :exc:`Exception`"""
 
         self.operational_error = kwargs.pop('operational_error')
@@ -102,7 +102,7 @@ class ProcedureCreationException(StoredProcedureException):
     def __init__(self, **kwargs):
         """Exception that occurs when storing the stored procedure in the database.
 
-:param operational_error: The exception that occurred, in most cases this will be of type :exc:`django.db.utils.DatabaseError` or `_mysql.OperationalError`.
+:param operational_error: The exception that occurred, in most cases this will be of type :exc:`django.db.utils.DatabaseError` or `django.db.utils.OperationalError`.
 :type operational_error: :exc:`Exception`"""
         self.operational_error = kwargs.pop('operational_error')
         super(ProcedureCreationException, self).__init__(**kwargs)

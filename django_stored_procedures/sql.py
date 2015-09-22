@@ -6,7 +6,7 @@ try:
 except Exception as exp:
     print exp
 
-from _mysql import OperationalError
+from django.db.utils import OperationalError
 import warnings
 
 from exceptions import *

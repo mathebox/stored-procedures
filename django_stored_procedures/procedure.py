@@ -6,7 +6,7 @@ except ImportError as exp:
     print exp
 
 from django.template import Template, Context
-from _mysql import OperationalError
+from django.db.utils import OperationalError
 
 import codecs, itertools, re, functools, warnings
 
