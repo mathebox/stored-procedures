@@ -10,8 +10,6 @@ from django.db.utils import OperationalError
 
 import codecs, itertools, re, functools, warnings
 
-from itertools import izip_longest
-
 from exceptions import *
 from library import registerProcedure
 
@@ -28,7 +26,7 @@ class StoredProcedure():
             ,   name            = None
             ,   arguments       = None
             ,   results         = False
-            ,   flatten         = True
+            ,   flatten         = False
             ,   context         = None
             ,   raise_warnings  = False
     ):
@@ -239,19 +237,23 @@ Note that we first try to delete the procedure, and then insert it. Take great c
 
 :raises: Nameclashes result in a :exc:`TypeError`, invalid arguments yield :exc:`~exceptions.InvalidArgument` and too few arguments give rise to :exc:`~exceptions.InsufficientArguments`."""
         # Fetch the procedures arguments
-        args = {arg.upper(): arg_value for arg, arg_value in izip_longest(self.arguments, args)}
+        args = {arg.upper(): arg_value for arg, arg_value in zip(self.arguments, args)}
 
         cursor = connection.cursor()
-        cursor.execute(self.call, args)
+        psid = cursor.prepare(self._call)
+        ps = cursor.get_prepared_statement(psid)
+        cursor.execute_prepared(ps)
 
         # Always force the cursor to free its warnings
         with warnings.catch_warnings(record = True) as ws:
             warnings.simplefilter('always' if self._raise_warnings else 'ignore')
 
+            results = []
             if self.hasResults:
                 # There are some results to be fetched
-                results = cursor.fetchall()
-
+                results.append(cursor.fetchall())
+                while cursor.nextset() is not None:
+                    results.append(cursor.fetchall())
             cursor.close()
 
             if len(ws) >= 1:
@@ -263,7 +265,10 @@ Note that we first try to delete the procedure, and then insert it. Take great c
 
         if self.hasResults:
             # if so requested, return only the first set of results
-            return results[0] if self._flatten else results
+            if self._flatten and len(results)>0 and len(results[0])>0:
+                return results[0][0]
+            else:
+                return results
 
     # Properties
     name = property(
@@ -378,7 +383,7 @@ Note that we first try to delete the procedure, and then insert it. Take great c
         self._call = 'CALL %s (%s)' % \
             (
                     self.name
-                ,   ','.join('%s' for _ in xrange(0, argCount))
+                ,   ','.join('?' for _ in xrange(0, argCount))
             )
 
     def __unicode__(self):
