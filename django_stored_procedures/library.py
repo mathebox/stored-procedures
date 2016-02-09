@@ -13,23 +13,29 @@ class StoredProcedureLibary():
         nameDictionary = dict()
         quote = connection.ops.quote_name
 
-        for app in models.get_apps():
-            app_name         = app.__name__.split('.')[-2]
-            app_prefix       = '%s.%%s' % app_name
-            app_field_prefix = '%s.%%s.%%%%s' % app_name
+        try:
+            try:
+                # django >= 1.7
+                from django.apps import apps
+                models = apps.get_models()
+            except ImportError:
+                # django < 1.7
+                from django.db.models import get_model
+                models = get_models()
+        except LookupError:
+            # both get_model versions can raise a LookupError
+            models = []
 
-            for model in models.get_models(app, include_auto_created=True):
-                model_prefix = app_prefix % model.__name__
-                field_prefix = app_field_prefix % model.__name__
+        for model in models:
+            meta = model._meta
+            model_identifier = '%s.%s' % (meta.app_label, model.__name__)
+            field_identifier = '%s.%%s' % model_identifier
 
-                meta = model._meta
+            nameDictionary[model_identifier] = meta.db_table
+            nameDictionary[field_identifier % 'pk'] = meta.pk.column
 
-                nameDictionary[model_prefix] = meta.db_table
-                nameDictionary[field_prefix % 'pk'] = meta.pk.column
-
-                for field in meta.fields:
-                    nameDictionary[field_prefix % field.name] = \
-                        quote(field.column)
+            for field in meta.fields:
+                nameDictionary[field_identifier % field.name] = quote(field.column)
 
         return nameDictionary
 
