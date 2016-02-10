@@ -26,7 +26,7 @@ class StoredProcedure():
             ,   name            = None
             ,   arguments       = None
             ,   results         = False
-            ,   flatten         = False
+            ,   flatten         = True
             ,   context         = None
             ,   raise_warnings  = False
     ):
@@ -242,7 +242,7 @@ Note that we first try to delete the procedure, and then insert it. Take great c
         cursor = connection.cursor()
         psid = cursor.prepare(self._call)
         ps = cursor.get_prepared_statement(psid)
-        cursor.execute_prepared(ps)
+        cursor.execute_prepared(ps, [args])
 
         # Always force the cursor to free its warnings
         with warnings.catch_warnings(record = True) as ws:
@@ -254,6 +254,7 @@ Note that we first try to delete the procedure, and then insert it. Take great c
                 results.append(cursor.fetchall())
                 while cursor.nextset() is not None:
                     results.append(cursor.fetchall())
+            cursor.drop_prepared(psid)
             cursor.close()
 
             if len(ws) >= 1:
@@ -265,7 +266,7 @@ Note that we first try to delete the procedure, and then insert it. Take great c
 
         if self.hasResults:
             # if so requested, return only the first set of results
-            if self._flatten and len(results)>0 and len(results[0])>0:
+            if self._flatten and len(results) == 1 and len(results[0]) == 1:
                 return results[0][0]
             else:
                 return results
